@@ -1,20 +1,16 @@
-FROM richarvey/nginx-php-fpm:3.1.6
+FROM dunglas/frankenphp:1-php8.3
 
+RUN install-php-extensions pdo_pgsql
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
 COPY . .
 
-# Image config
-ENV SKIP_COMPOSER 1
-ENV WEBROOT /var/www/html/public
-ENV PHP_ERRORS_STDERR 1
-ENV RUN_SCRIPTS 1
-ENV REAL_IP_HEADER 1
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
-# Laravel config
-ENV APP_ENV production
-ENV APP_DEBUG false
-ENV LOG_CHANNEL stderr
+EXPOSE 10000
 
-# Allow composer to run as root
-ENV COMPOSER_ALLOW_SUPERUSER 1
-
-CMD ["/start.sh"]
+CMD ["sh", "-c", "php artisan migrate --force && frankenphp php-server --listen 0.0.0.0:${PORT:-10000} --root public/"]
